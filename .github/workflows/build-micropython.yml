@@ -36,19 +36,14 @@ jobs:
         cd upstream_micropython/mpy-cross
         make
 
-    # 5. Fetch the ESP-IDF submodule folder first so the install script exists
-    - name: Fetch ESP-IDF source files
-      run: |
-        cd upstream_micropython
-        git submodule update --init lib/esp-idf
-
-    # 6. Install the official Espressif toolchain binaries for ESP32-C6
+    # 5. Install the official Espressif toolchain binaries for ESP32-C6
     - name: Install Espressif Toolchain for ESP32-C6
       run: |
+        # Since --recursive was used during clone, ESP-IDF is already present in lib/esp-idf
         cd upstream_micropython/lib/esp-idf
         ./install.sh esp32c6
 
-    # 7. Initialize ESP32 port submodules AND compile using the active ESP-IDF environment
+    # 6. Initialize ESP32 port submodules AND compile using the active ESP-IDF environment
     - name: Initialize Submodules and Compile Firmware
       run: |
         # Export toolchain environment variables first so idf.py is accessible
@@ -61,13 +56,13 @@ jobs:
         # Compile the final image using the USER_C_MODULES parameter
         make BOARD=ESP32_GENERIC_C6 USER_C_MODULES=$GITHUB_WORKSPACE/custom_module/esp32_twt
 
-    # 8. Prepare the compiled output binary for artifact packaging
+    # 7. Prepare the compiled output binary for artifact packaging
     - name: Prepare build artifacts
       run: |
         mkdir -p build_output
         cp upstream_micropython/ports/esp32/build-ESP32_GENERIC_C6/firmware.bin build_output/micropython-esp32c6-twt.bin
 
-    # 9. Upload the verified binary file to the GitHub Actions workflow storage
+    # 8. Upload the verified binary file to the GitHub Actions workflow storage
     - name: Upload compiled firmware artifact
       uses: actions/upload-artifact@v4
       with:
@@ -75,3 +70,6 @@ jobs:
         path: build_output/micropython-esp32c6-twt.bin
         if-no-files-found: error
         retention-days: 30
+
+
+
