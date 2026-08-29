@@ -57,7 +57,7 @@ jobs:
         cp upstream_micropython/ports/esp32/build-ESP32_GENERIC_C6/firmware.bin build_output/micropython-esp32c6-twt.bin
 
     - name: Upload compiled firmware artifact
-      uses: actions/artifacts@v4
+      uses: actions/upload-artifact@v4
       with:
         name: micropython-esp32c6-twt-firmware
         path: build_output/micropython-esp32c6-twt.bin
