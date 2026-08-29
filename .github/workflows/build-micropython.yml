@@ -25,7 +25,7 @@ jobs:
         sudo apt-get update
         sudo apt-get install -y build-essential libffi-dev git pkg-config python3-pip python3-virtualenv ccache libssl-dev ninja-build
 
-    # 3. Clone the official MicroPython core repository recursively with all submodules
+    # 3. Clone the official MicroPython core repository recursively (downloads ESP-IDF automatically into lib/esp-idf)
     - name: Clone MicroPython core repository
       run: |
         git clone --recursive https://github.com/micropython/micropython.git upstream_micropython
@@ -36,39 +36,29 @@ jobs:
         cd upstream_micropython/mpy-cross
         make
 
-    # 5. Fetch and initialize the specific ESP-IDF path framework first
-    - name: Fetch ESP-IDF framework files
-      run: |
-        cd upstream_micropython/ports/esp32
-        # Fetch the framework base code before installing the toolchain
-        git submodule update --init --recursive esp-idf
-
-    # 6. Install the official Espressif toolchain binaries for ESP32-C6
+    # 5. Install the official Espressif toolchain binaries for ESP32-C6
     - name: Install Espressif Toolchain for ESP32-C6
       run: |
-        cd upstream_micropython/ports/esp32/esp-idf
+        cd upstream_micropython/lib/esp-idf
         ./install.sh esp32c6
 
-    # 7. Initialize ESP32 port submodules AND compile using the active ESP-IDF environment
-    - name: Initialize Submodules and Compile Firmware
+    # 6. Initialize ESP32 port tools and compile using the active ESP-IDF environment
+    - name: Initialize Port and Compile Firmware
       run: |
-        # Export toolchain environment variables first so idf.py is accessible everywhere
-        . upstream_micropython/ports/esp32/esp-idf/export.sh
+        # Export toolchain environment variables so idf.py is accessible everywhere
+        . upstream_micropython/lib/esp-idf/export.sh
         
         cd upstream_micropython/ports/esp32
-        # Now make submodules can find idf.py successfully
-        make BOARD=ESP32_GENERIC_C6 submodules
-        
-        # Compile the final image using the USER_C_MODULES parameter
+        # Build the final image using the USER_C_MODULES parameter to inject our custom TWT code
         make BOARD=ESP32_GENERIC_C6 USER_C_MODULES=$GITHUB_WORKSPACE/custom_module/esp32_twt
 
-    # 8. Prepare the compiled output binary for artifact packaging
+    # 7. Prepare the compiled output binary for artifact packaging
     - name: Prepare build artifacts
       run: |
         mkdir -p build_output
         cp upstream_micropython/ports/esp32/build-ESP32_GENERIC_C6/firmware.bin build_output/micropython-esp32c6-twt.bin
 
-    # 9. Upload the verified binary file to the GitHub Actions workflow storage
+    # 8. Upload the verified binary file to the GitHub Actions workflow storage
     - name: Upload compiled firmware artifact
       uses: actions/upload-artifact@v4
       with:
