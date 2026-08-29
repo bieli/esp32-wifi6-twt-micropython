@@ -63,3 +63,9 @@ while True:
     current_stats = esp32_twt.status()
     print("Active TWT session state code:", current_stats['status_code'])
 
+
+print("\nDisabling TWT because a heavy data transmission is required...")
+esp32_twt.teardown()
+
+# Now the system does not automatically enter Light Sleep and maintains full radio power
+print("Device is back to full performance mode.")
