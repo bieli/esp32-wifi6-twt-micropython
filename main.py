@@ -59,3 +59,7 @@ while True:
     print("Device connection health status:", wlan.isconnected())
     # During this sleep interval, the chip defaults to Light Sleep to minimize current draw
     time.sleep(10)
+
+    current_stats = esp32_twt.status()
+    print("Active TWT session state code:", current_stats['status_code'])
+
