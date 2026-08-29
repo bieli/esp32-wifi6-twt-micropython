@@ -98,3 +98,13 @@ After flashing, open your favorite serial terminal (e.g., `screen`, `picocom`, o
 ['__name__', 'setup']
 ```
 If you see the `setup` function listed, your custom TWT compilation was successful!
+
+
+### Interesting reserach about TWT
+- https://wiki.st.com/stm32mcu/wiki/Connectivity:Wi-Fi6_Target_Wake_Time_(TWT)
+- https://github.com/espressif/esp-idf/issues/13344
+- https://github.com/espressif/esp-idf/issues/11797
+- https://github.com/espressif/esp-idf/issues/11797
+- https://github.com/espressif/esp-idf/blob/master/examples/wifi/itwt/main/itwt_main.c
+- for CAN - https://github.com/straga/micropython-esp32-twai
+  
