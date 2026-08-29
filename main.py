@@ -28,6 +28,29 @@ esp32_twt.setup(
     esp32_twt.TRIGGER_ENABLE
 )
 
+time.sleep(2)
+
+print("\n--- Checking TWT Session Status ---")
+stats = esp32_twt.status()
+
+# TWT from ESP-IDFinterpretation:
+# 0 = Setup in progress / Negotiating
+# 1 = Request Accepted (Success - TWT works)
+# 2 = Request Rejected / Session Terminated (Router denied paramaeters)
+status_code = stats['status_code']
+
+if status_code == 1:
+    print("SUCCESS: Your Wi-Fi 6 Router accepted the TWT schedule!")
+elif status_code == 0:
+    print("PENDING: TWT Negotiation is still in progress...")
+else:
+    print("FAILED: Router rejected TWT request or does not support Wi-Fi 6.")
+
+print(f"Total Sent Frames during TWT: {stats['tx_frames']} (Successful: {stats['succ_tx_frames']})")
+print(f"Total Received Frames during TWT: {stats['rx_frames']} (Successful: {stats['succ_rx_frames']})")
+print("-----------------------------------\n")
+
+
 # 3. Main testing loop for current consumption analysis
 # The device maintains a logical Wi-Fi connection, but the radio and CPU 
 # automatically fall into a low-power state, waking up briefly every ~82 seconds.
