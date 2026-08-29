@@ -24,7 +24,7 @@ jobs:
 
     - name: Clone MicroPython core repository
       run: |
-        git clone --recursive https://github.com upstream_micropython
+        git clone --recursive https://github.com/micropython/micropython upstream_micropython
 
     - name: Build MicroPython mpy-cross tool
       run: |
