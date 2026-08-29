@@ -1,0 +1,65 @@
+name: Build ESP32-C6 MicroPython with TWT Module
+
+on:
+  push:
+    branches: [ "main", "master" ]
+  pull_request:
+    branches: [ "main", "master" ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+
+    steps:
+    - name: Checkout custom module repository
+      uses: actions/checkout@v4
+      with:
+        path: custom_module
+
+    - name: Install system dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y build-essential libffi-dev git pkg-config python3-pip python3-virtualenv ccache libssl-dev
+
+    - name: Clone MicroPython core repository
+      run: |
+        git clone --recursive https://github.com upstream_micropython
+
+    - name: Build MicroPython mpy-cross tool
+      run: |
+        cd upstream_micropython/mpy-cross
+        make
+
+    - name: Set up Espressif ESP-IDF framework
+      run: |
+        cd upstream_micropython/ports/esp32
+        # Pobranie odpowiedniej wersji IDF zdefiniowanej w danym wydaniu MicroPythona
+        make idf_version
+        
+        # Wejście do pobranego automatycznie katalogu esp-idf i instalacja narzędzi dla ESP32-C6
+        cd ../../esp-idf
+        ./install.sh esp32c6
+
+    - name: Compile ESP32-C6 firmware with custom TWT module
+      run: |
+        cd upstream_micropython/ports/esp32
+        
+        # Aktywacja zmiennych środowiskowych kompilatora (Odpowiednik 'source export.sh')
+        . ../../esp-idf/export.sh
+        
+        # Budowanie binarnego obrazu dla ESP32-C6 z przekazaniem ścieżki do naszego modułu w parametrze USER_C_MODULES
+        make BOARD=ESP32_GENERIC_C6 USER_C_MODULES=$GITHUB_WORKSPACE/custom_module/esp32_twt
+
+    - name: Prepare build artifacts
+      run: |
+        mkdir -p build_output
+        cp upstream_micropython/ports/esp32/build-ESP32_GENERIC_C6/firmware.bin build_output/micropython-esp32c6-twt.bin
+
+    - name: Upload compiled firmware artifact
+      uses: actions/artifacts@v4
+      with:
+        name: micropython-esp32c6-twt-firmware
+        path: build_output/micropython-esp32c6-twt.bin
+        if-no-files-found: error
+        retention-days: 30
