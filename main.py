@@ -19,8 +19,14 @@ time.sleep(2)
 # Interval calculation: (2^exponent) * mantissa microseconds
 # Using exponent = 12 and mantissa = 20000:
 # (2^12) * 20000 us = 4096 * 20000 us = 81,920,000 us = ~82 seconds sleep interval
-print("Configuring TWT parameters - microcontroller entering power-save mode...")
-esp32_twt.setup(12, 20000)
+
+print("Applying advanced TWT configuration parameters - microcontroller entering power-save mode...")
+esp32_twt.setup(
+    12, 
+    20000, 
+    esp32_twt.FLOW_ANNOUNCED, 
+    esp32_twt.TRIGGER_ENABLE
+)
 
 # 3. Main testing loop for current consumption analysis
 # The device maintains a logical Wi-Fi connection, but the radio and CPU 
