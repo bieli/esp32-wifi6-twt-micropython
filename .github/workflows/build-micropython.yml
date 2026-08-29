@@ -1,5 +1,6 @@
 name: Build ESP32-C6 MicroPython with TWT Module
 
+# Trigger the workflow on push or pull request to main branches, or via manual dispatch
 on:
   push:
     branches: [ "main", "master" ]
@@ -12,50 +13,60 @@ jobs:
     runs-on: ubuntu-22.04
 
     steps:
+    # 1. Fetch the custom C module source code from the current repository
     - name: Checkout custom module repository
       uses: actions/checkout@v4
       with:
         path: custom_module
 
+    # 2. Install required Linux system dependencies for MicroPython and ESP-IDF
     - name: Install system dependencies
       run: |
         sudo apt-get update
-        sudo apt-get install -y build-essential libffi-dev git pkg-config python3-pip python3-virtualenv ccache libssl-dev
+        sudo apt-get install -y build-essential libffi-dev git pkg-config python3-pip python3-virtualenv ccache libssl-dev ninja-build
 
+    # 3. Clone the official MicroPython core repository recursively with all submodules
     - name: Clone MicroPython core repository
       run: |
         git clone --recursive https://github.com/micropython/micropython upstream_micropython
 
+    # 4. Compile the internal MicroPython cross-compiler (mpy-cross)
     - name: Build MicroPython mpy-cross tool
       run: |
         cd upstream_micropython/mpy-cross
         make
 
-    - name: Set up Espressif ESP-IDF framework
+    # 5. Initialize and download the matching ESP-IDF framework and ESP32 port submodules
+    - name: Initialize ESP32 port submodules and ESP-IDF
       run: |
         cd upstream_micropython/ports/esp32
-        # Pobranie odpowiedniej wersji IDF zdefiniowanej w danym wydaniu MicroPythona
-        make idf_version
-        
-        # Wejście do pobranego automatycznie katalogu esp-idf i instalacja narzędzi dla ESP32-C6
-        cd ../../esp-idf
+        # Modern recommended way in MicroPython to fetch target-specific dependencies
+        make BOARD=ESP32_GENERIC_C6 submodules
+
+    # 6. Install the official Espressif toolchain binaries for ESP32-C6
+    - name: Install Espressif Toolchain for ESP32-C6
+      run: |
+        # MicroPython clones the target ESP-IDF into the lib/esp-idf directory
+        cd upstream_micropython/lib/esp-idf
         ./install.sh esp32c6
 
+    # 7. Compile the final firmware binary injecting the custom user C module
     - name: Compile ESP32-C6 firmware with custom TWT module
       run: |
+        # Export toolchain environment variables (Equivalent to sourcing export.sh)
+        . upstream_micropython/lib/esp-idf/export.sh
+        
         cd upstream_micropython/ports/esp32
-        
-        # Aktywacja zmiennych środowiskowych kompilatora (Odpowiednik 'source export.sh')
-        . ../../esp-idf/export.sh
-        
-        # Budowanie binarnego obrazu dla ESP32-C6 z przekazaniem ścieżki do naszego modułu w parametrze USER_C_MODULES
+        # Build the final image using the USER_C_MODULES parameter to point to our source
         make BOARD=ESP32_GENERIC_C6 USER_C_MODULES=$GITHUB_WORKSPACE/custom_module/esp32_twt
 
+    # 8. Prepare the compiled output binary for artifact packaging
     - name: Prepare build artifacts
       run: |
         mkdir -p build_output
         cp upstream_micropython/ports/esp32/build-ESP32_GENERIC_C6/firmware.bin build_output/micropython-esp32c6-twt.bin
 
+    # 9. Upload the verified binary file to the GitHub Actions workflow storage
     - name: Upload compiled firmware artifact
       uses: actions/upload-artifact@v4
       with:
