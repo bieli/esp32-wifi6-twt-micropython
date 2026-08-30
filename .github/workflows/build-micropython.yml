@@ -10,7 +10,8 @@ on:
 jobs:
   build:
     runs-on: ubuntu-22.04
-    container: espressif/idf:release-v5.2
+    # Use the stable official Espressif Docker container matching modern MicroPython requirements
+    container: espressif/idf:release-v5.4
 
     steps:
     # 1. Fetch your custom C module repository source code
@@ -25,11 +26,12 @@ jobs:
         apt-get update
         apt-get install -y build-essential libffi-dev git pkg-config python3-pip python3-virtualenv
 
-    # 3. Clone MicroPython and initialize its base submodules
+    # 3. Clone MicroPython and initialize its base submodules manually
     - name: Clone MicroPython core repository
       run: |
         git clone --recursive https://github.com/micropython/micropython.git upstream_micropython
         cd upstream_micropython
+        # Initialize only core MicroPython dependencies (skipping external IDF fetches)
         git submodule update --init lib/berkeley-db-1.12 lib/micropython-lib || true
 
     # 4. Compile the internal MicroPython cross-compiler (mpy-cross)
@@ -38,21 +40,20 @@ jobs:
         cd upstream_micropython/mpy-cross
         make
 
-    # 5. Dynamically verify and correct the C module path, then compile
+    # 5. Dynamically verify and correct the C module path, then compile using release-v5.4
     - name: Compile ESP32-C6 Firmware with Custom TWT Module
       run: |
-        # Activate compiler paths
+        # Use the container's built-in activation script to guarantee compiler paths
         . $IDF_PATH/export.sh
         export IDF_COMPONENT_MANAGER=1
         
-        # Absolute fallback check: find where micropython.cmake actually is
-        # inside the checked-out custom module repository
+        # Locate the exact directory containing micropython.cmake
         IFACE_DIR=$(dirname $(find $GITHUB_WORKSPACE/custom_module -name "micropython.cmake" | head -n 1))
-        
         echo "Validated User C Module directory path: $IFACE_DIR"
         
-        # Move to the port directory and start compile using the verified path
         cd upstream_micropython/ports/esp32
+        
+        # Build the firmware targeting the custom release-v5.4 container IDF path directly
         make BOARD=ESP32_GENERIC_C6 USER_C_MODULES=$IFACE_DIR ESPIDF=$IDF_PATH
 
     # 6. Gather and rename the output compiled file
