@@ -1,6 +1,11 @@
 # micropython.cmake
-# Register the user C module within the MicroPython CMake build system
-_extmod_add_library(esp32_twt INTERFACE)
-_extmod_target_sources(esp32_twt INTERFACE "${CMAKE_CURRENT_LIST_DIR}/esp32_twt.c")
-_extmod_target_include_directories(esp32_twt INTERFACE "${CMAKE_CURRENT_LIST_DIR}")
-_extmod_register_module(esp32_twt)
+# Register the custom C module using the modern MicroPython usermod API
+
+mp_usermod_add_library(usermod_esp32_twt INTERFACE)
+
+target_sources(usermod_esp32_twt INTERFACE "${CMAKE_CURRENT_LIST_DIR}/esp32_twt.c")
+
+target_include_directories(usermod_esp32_twt INTERFACE "${CMAKE_CURRENT_LIST_DIR}")
+
+# Link the module library to the main usermod target group
+target_link_libraries(usermod INTERFACE usermod_esp32_twt)
