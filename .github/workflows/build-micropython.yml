@@ -11,6 +11,8 @@ on:
 jobs:
   build:
     runs-on: ubuntu-22.04
+    # Execute all compilation steps inside the official, pre-configured Espressif IDF Docker container
+    container: espressif/idf:release-v5.1
 
     steps:
     # 1. Fetch the custom C module source code from the current repository
@@ -19,13 +21,13 @@ jobs:
       with:
         path: custom_module
 
-    # 2. Install required Linux system dependencies for MicroPython and ESP-IDF
-    - name: Install system dependencies
+    # 2. Install MicroPython-specific build requirements inside the container
+    - name: Install build dependencies
       run: |
-        sudo apt-get update
-        sudo apt-get install -y build-essential libffi-dev git pkg-config python3-pip python3-virtualenv ccache libssl-dev ninja-build
+        apt-get update
+        apt-get install -y build-essential libffi-dev git pkg-config python3-pip python3-virtualenv
 
-    # 3. Clone the official MicroPython core repository recursively
+    # 3. Clone the official MicroPython core repository (shallow clone for performance)
     - name: Clone MicroPython core repository
       run: |
         git clone --recursive https://github.com/micropython/micropython.git upstream_micropython
@@ -36,23 +38,20 @@ jobs:
         cd upstream_micropython/mpy-cross
         make
 
-    # 5. Use MicroPython's native CI script to download and fully setup the exact ESP-IDF version
-    - name: Set up Espressif ESP-IDF Framework and Tools
+    # 5. Initialize additional internal target submodules required by the ESP32 port
+    - name: Initialize ESP32 port submodules
       run: |
         cd upstream_micropython
-        # Use the repository's built-in automation to setup the required environment
-        source tools/ci.sh && ci_esp32_idf_setup
+        # Initialize critical hardware components mapping, skipping heavy external IDF fetches
+        git submodule update --init lib/berkeley-db-1.12 lib/micropython-lib
 
-    # 6. Compile the final firmware binary using the activated environment variables
+    # 6. Compile the final firmware binary using the Docker-preinstalled ESP-IDF framework
     - name: Compile ESP32-C6 Firmware with Custom TWT Module
       run: |
-        cd upstream_micropython
-        # Load the active ESP-IDF shell paths and compiler environment variables
-        source tools/ci.sh && ci_esp32_idf_setup
+        cd upstream_micropython/ports/esp32
         
-        # Move to the port directory and start the compiler injecting our module
-        cd ports/esp32
-        make BOARD=ESP32_GENERIC_C6 USER_C_MODULES=$GITHUB_WORKSPACE/custom_module/esp32_twt
+        # Build the final image passing our custom C module and targeting the custom IDF path
+        make BOARD=ESP32_GENERIC_C6 USER_C_MODULES=$GITHUB_WORKSPACE/custom_module/esp32_twt ESPIDF=$IDF_PATH
 
     # 7. Prepare the compiled output binary for artifact packaging
     - name: Prepare build artifacts
