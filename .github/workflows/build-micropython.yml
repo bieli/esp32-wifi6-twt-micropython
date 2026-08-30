@@ -10,7 +10,6 @@ on:
 jobs:
   build:
     runs-on: ubuntu-22.04
-    # Use the stable official Espressif Docker container matching the modern MicroPython IDF requirements
     container: espressif/idf:release-v5.3
 
     steps:
@@ -26,12 +25,11 @@ jobs:
         apt-get update
         apt-get install -y build-essential libffi-dev git pkg-config python3-pip python3-virtualenv
 
-    # 3. Clone MicroPython and initialize its base submodules manually
+    # 3. Clone MicroPython and initialize its base submodules
     - name: Clone MicroPython core repository
       run: |
         git clone --recursive https://github.com/micropython/micropython.git upstream_micropython
         cd upstream_micropython
-        # Initialize only core MicroPython dependencies (skipping external IDF fetches)
         git submodule update --init lib/berkeley-db-1.12 lib/micropython-lib || true
 
     # 4. Compile the internal MicroPython cross-compiler (mpy-cross)
@@ -40,19 +38,22 @@ jobs:
         cd upstream_micropython/mpy-cross
         make
 
-    # 5. Compile the final firmware binary using explicitly defined environment variables
+    # 5. Dynamically verify and correct the C module path, then compile
     - name: Compile ESP32-C6 Firmware with Custom TWT Module
       run: |
-        # Use the container's built-in activation script to guarantee compiler paths
+        # Activate compiler paths
         . $IDF_PATH/export.sh
-        
-        # Enable the IDF Component Manager to automatically download external drivers like gptimer
         export IDF_COMPONENT_MANAGER=1
         
-        cd upstream_micropython/ports/esp32
+        # Absolute fallback check: find where micropython.cmake actually is
+        # inside the checked-out custom module repository
+        IFACE_DIR=$(dirname $(find $GITHUB_WORKSPACE/custom_module -name "micropython.cmake" | head -n 1))
         
-        # Build the firmware by passing the pre-installed container IDF path directly
-        make BOARD=ESP32_GENERIC_C6 USER_C_MODULES=$GITHUB_WORKSPACE/custom_module/esp32_twt ESPIDF=$IDF_PATH
+        echo "Validated User C Module directory path: $IFACE_DIR"
+        
+        # Move to the port directory and start compile using the verified path
+        cd upstream_micropython/ports/esp32
+        make BOARD=ESP32_GENERIC_C6 USER_C_MODULES=$IFACE_DIR ESPIDF=$IDF_PATH
 
     # 6. Gather and rename the output compiled file
     - name: Prepare build artifacts
@@ -68,6 +69,3 @@ jobs:
         path: build_output/micropython-esp32c6-twt.bin
         if-no-files-found: error
         retention-days: 30
-
-
-
