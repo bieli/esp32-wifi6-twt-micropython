@@ -1,6 +1,5 @@
 name: Build ESP32-C6 MicroPython with TWT Module
 
-# Trigger the workflow on push or pull request to main branches, or via manual dispatch
 on:
   push:
     branches: [ "main", "master" ]
@@ -11,26 +10,29 @@ on:
 jobs:
   build:
     runs-on: ubuntu-22.04
-    # Execute all compilation steps inside the official, pre-configured Espressif IDF Docker container
+    # Use the stable official Espressif Docker container with pre-installed compiler tools
     container: espressif/idf:release-v5.1
 
     steps:
-    # 1. Fetch the custom C module source code from the current repository
+    # 1. Fetch your custom C module repository source code
     - name: Checkout custom module repository
       uses: actions/checkout@v4
       with:
         path: custom_module
 
-    # 2. Install MicroPython-specific build requirements inside the container
+    # 2. Install specific dependencies needed inside the Espressif container
     - name: Install build dependencies
       run: |
         apt-get update
         apt-get install -y build-essential libffi-dev git pkg-config python3-pip python3-virtualenv
 
-    # 3. Clone the official MicroPython core repository (shallow clone for performance)
+    # 3. Clone MicroPython and initialize its base submodules manually
     - name: Clone MicroPython core repository
       run: |
         git clone --recursive https://github.com/micropython/micropython.git upstream_micropython
+        cd upstream_micropython
+        # Initialize only core MicroPython dependencies (skipping external IDF fetches)
+        git submodule update --init lib/berkeley-db-1.12 lib/micropython-lib || true
 
     # 4. Compile the internal MicroPython cross-compiler (mpy-cross)
     - name: Build MicroPython mpy-cross tool
@@ -38,28 +40,24 @@ jobs:
         cd upstream_micropython/mpy-cross
         make
 
-    # 5. Initialize additional internal target submodules required by the ESP32 port
-    - name: Initialize ESP32 port submodules
-      run: |
-        cd upstream_micropython
-        # Initialize critical hardware components mapping, skipping heavy external IDF fetches
-        git submodule update --init lib/berkeley-db-1.12 lib/micropython-lib
-
-    # 6. Compile the final firmware binary using the Docker-preinstalled ESP-IDF framework
+    # 5. Compile the final firmware binary using explicitly defined environment variables
     - name: Compile ESP32-C6 Firmware with Custom TWT Module
       run: |
+        # Use the container's built-in activation script to guarantee compiler paths
+        . $IDF_PATH/export.sh
+        
         cd upstream_micropython/ports/esp32
         
-        # Build the final image passing our custom C module and targeting the custom IDF path
+        # Build the firmware by passing the pre-installed container IDF path directly
         make BOARD=ESP32_GENERIC_C6 USER_C_MODULES=$GITHUB_WORKSPACE/custom_module/esp32_twt ESPIDF=$IDF_PATH
 
-    # 7. Prepare the compiled output binary for artifact packaging
+    # 6. Gather and rename the output compiled file
     - name: Prepare build artifacts
       run: |
         mkdir -p build_output
         cp upstream_micropython/ports/esp32/build-ESP32_GENERIC_C6/firmware.bin build_output/micropython-esp32c6-twt.bin
 
-    # 8. Upload the verified binary file to the GitHub Actions workflow storage
+    # 7. Upload the compiled firmware binary to GitHub Actions repository storage
     - name: Upload compiled firmware artifact
       uses: actions/upload-artifact@v4
       with:
