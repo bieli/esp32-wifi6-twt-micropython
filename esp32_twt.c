@@ -4,8 +4,8 @@
 #include "esp_pm.h"
 #include "esp_log.h"
 
-// 1. FUNCTION: SETUP TWT
-STATIC mp_obj_t esp32_twt_setup(size_t n_args, const mp_obj_t *args) {
+// Function to setup TWT using standard 'static' keyword compatible with modern MicroPython
+static mp_obj_t esp32_twt_setup(size_t n_args, const mp_obj_t *args) {
     uint8_t wake_int_exponent = mp_obj_get_int(args[0]);
     uint16_t wake_int_mantissa = mp_obj_get_int(args[1]);
     uint8_t flow_type = mp_obj_get_int(args[2]);
@@ -21,7 +21,7 @@ STATIC mp_obj_t esp32_twt_setup(size_t n_args, const mp_obj_t *args) {
     #endif
 
     esp_wifi_twt_setup_param_t twt_setup_param = {
-        .twt_id = 1, // Session Identifier 1
+        .twt_id = 1,
         .flow_type = (flow_type == 0) ? TWT_FLOW_TYPE_ANNOUNCED : TWT_FLOW_TYPE_UNANNOUNCED,
         .trigger = (trigger_en == 1) ? TWT_TRIGGER_EN : TWT_TRIGGER_DISABLE,                
         .wake_invl_exp = wake_int_exponent,                     
@@ -37,14 +37,12 @@ STATIC mp_obj_t esp32_twt_setup(size_t n_args, const mp_obj_t *args) {
     mp_print_str(&mp_plat_print, "Modern TWT setup request accepted and sent to AP.\n");
     return mp_const_none;
 }
-STATIC MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(esp32_twt_setup_obj, 4, 4, esp32_twt_setup);
+static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(esp32_twt_setup_obj, 4, 4, esp32_twt_setup);
 
 
-// 2. FUNCTION: GET TWT STATUS / STATISTICS
-STATIC mp_obj_t esp32_twt_status(void) {
+// Function to get TWT statistics
+static mp_obj_t esp32_twt_status(void) {
     wifi_twt_stats_t twt_stats;
-    
-    // Fetch stats for TWT ID = 1
     esp_err_t err = esp_wifi_twt_get_stats(1, &twt_stats);
     
     if (err != ESP_OK) {
@@ -52,7 +50,6 @@ STATIC mp_obj_t esp32_twt_status(void) {
     }
 
     mp_obj_t dict = mp_obj_new_dict(0);
-    
     mp_obj_dict_store(dict, MP_OBJ_NEW_QSTR(MP_QSTR_status_code), mp_obj_new_int(twt_stats.status));
     mp_obj_dict_store(dict, MP_OBJ_NEW_QSTR(MP_QSTR_tx_frames), mp_obj_new_int(twt_stats.twt_tx_frames_num));
     mp_obj_dict_store(dict, MP_OBJ_NEW_QSTR(MP_QSTR_rx_frames), mp_obj_new_int(twt_stats.twt_rx_frames_num));
@@ -61,23 +58,21 @@ STATIC mp_obj_t esp32_twt_status(void) {
 
     return dict;
 }
-STATIC MP_DEFINE_CONST_FUN_OBJ_0(esp32_twt_status_obj, esp32_twt_status);
+static MP_DEFINE_CONST_FUN_OBJ_0(esp32_twt_status_obj, esp32_twt_status);
 
 
-// 3. NEW FUNCTION: TEARDOWN TWT SESSION
-STATIC mp_obj_t esp32_twt_teardown(void) {
-    // Terminate the TWT session for TWT ID = 1
+// Function to teardown active TWT session
+static mp_obj_t esp32_twt_teardown(void) {
     esp_err_t err = esp_wifi_twt_teardown(1);
     
     if (err != ESP_OK) {
         mp_raise_ValueError("Failed to teardown TWT session. Ensure a session is active.");
     }
 
-    // Disable power management light sleep if you want to restore full performance
     #if CONFIG_PM_ENABLE
     esp_pm_config_t pm_config = {
         .max_freq_mhz = CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ,
-        .min_freq_mhz = CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ, // Keep CPU at max clock speed
+        .min_freq_mhz = CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ,
         .light_sleep_enable = false
     };
     ESP_ERROR_CHECK(esp_pm_configure(&pm_config));
@@ -86,22 +81,21 @@ STATIC mp_obj_t esp32_twt_teardown(void) {
     mp_print_str(&mp_plat_print, "TWT session closed successfully. Power save mode disabled.\n");
     return mp_const_none;
 }
-STATIC MP_DEFINE_CONST_FUN_OBJ_0(esp32_twt_teardown_obj, esp32_twt_teardown);
+static MP_DEFINE_CONST_FUN_OBJ_0(esp32_twt_teardown_obj, esp32_twt_teardown);
 
 
-// MODULE GLOBALS REGISTRATION
-STATIC const mp_rom_map_elem_t esp32_twt_module_globals_table[] = {
+// Module globals mapping table using standard modern syntax
+static const mp_rom_map_elem_t esp32_twt_module_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR___name__), MP_ROM_QSTR(MP_QSTR_esp32_twt) },
     { MP_ROM_QSTR(MP_QSTR_setup), MP_ROM_PTR(&esp32_twt_setup_obj) },
     { MP_ROM_QSTR(MP_QSTR_status), MP_ROM_PTR(&esp32_twt_status_obj) },
-    { MP_ROM_QSTR(MP_QSTR_teardown), MP_ROM_PTR(&esp32_twt_teardown_obj) }, // Registered teardown function
-    // Constants
+    { MP_ROM_QSTR(MP_QSTR_teardown), MP_ROM_PTR(&esp32_twt_teardown_obj) },
     { MP_ROM_QSTR(MP_QSTR_FLOW_ANNOUNCED), MP_ROM_INT(0) },
     { MP_ROM_QSTR(MP_QSTR_FLOW_UNANNOUNCED), MP_ROM_INT(1) },
     { MP_ROM_QSTR(MP_QSTR_TRIGGER_DISABLE), MP_ROM_INT(0) },
     { MP_ROM_QSTR(MP_QSTR_TRIGGER_ENABLE), MP_ROM_INT(1) },
 };
-STATIC MP_DEFINE_CONST_DICT(esp32_twt_module_globals, esp32_twt_module_globals_table);
+static MP_DEFINE_CONST_DICT(esp32_twt_module_globals, esp32_twt_module_globals_table);
 
 const mp_obj_module_t esp32_twt_user_module = {
     .base = { &mp_type_module },
