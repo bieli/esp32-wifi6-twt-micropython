@@ -10,8 +10,8 @@ on:
 jobs:
   build:
     runs-on: ubuntu-22.04
-    # Use the stable official Espressif Docker container with pre-installed compiler tools
-    container: espressif/idf:release-v5.1
+    # Use the stable official Espressif Docker container matching the modern MicroPython IDF requirements
+    container: espressif/idf:release-v5.3
 
     steps:
     # 1. Fetch your custom C module repository source code
@@ -46,6 +46,9 @@ jobs:
         # Use the container's built-in activation script to guarantee compiler paths
         . $IDF_PATH/export.sh
         
+        # Enable the IDF Component Manager to automatically download external drivers like gptimer
+        export IDF_COMPONENT_MANAGER=1
+        
         cd upstream_micropython/ports/esp32
         
         # Build the firmware by passing the pre-installed container IDF path directly
@@ -65,3 +68,6 @@ jobs:
         path: build_output/micropython-esp32c6-twt.bin
         if-no-files-found: error
         retention-days: 30
+
+
+
