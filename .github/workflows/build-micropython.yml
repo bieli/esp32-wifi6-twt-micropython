@@ -25,7 +25,7 @@ jobs:
         sudo apt-get update
         sudo apt-get install -y build-essential libffi-dev git pkg-config python3-pip python3-virtualenv ccache libssl-dev ninja-build
 
-    # 3. Clone the official MicroPython core repository recursively (downloads ESP-IDF automatically into lib/esp-idf)
+    # 3. Clone the official MicroPython core repository recursively
     - name: Clone MicroPython core repository
       run: |
         git clone --recursive https://github.com/micropython/micropython.git upstream_micropython
@@ -36,20 +36,22 @@ jobs:
         cd upstream_micropython/mpy-cross
         make
 
-    # 5. Install the official Espressif toolchain binaries for ESP32-C6
-    - name: Install Espressif Toolchain for ESP32-C6
+    # 5. Use MicroPython's native CI script to download and fully setup the exact ESP-IDF version
+    - name: Set up Espressif ESP-IDF Framework and Tools
       run: |
-        cd upstream_micropython/lib/esp-idf
-        ./install.sh esp32c6
+        cd upstream_micropython
+        # Use the repository's built-in automation to setup the required environment
+        source tools/ci.sh && ci_esp32_idf_setup
 
-    # 6. Initialize ESP32 port tools and compile using the active ESP-IDF environment
-    - name: Initialize Port and Compile Firmware
+    # 6. Compile the final firmware binary using the activated environment variables
+    - name: Compile ESP32-C6 Firmware with Custom TWT Module
       run: |
-        # Export toolchain environment variables so idf.py is accessible everywhere
-        . upstream_micropython/lib/esp-idf/export.sh
+        cd upstream_micropython
+        # Load the active ESP-IDF shell paths and compiler environment variables
+        source tools/ci.sh && ci_esp32_idf_setup
         
-        cd upstream_micropython/ports/esp32
-        # Build the final image using the USER_C_MODULES parameter to inject our custom TWT code
+        # Move to the port directory and start the compiler injecting our module
+        cd ports/esp32
         make BOARD=ESP32_GENERIC_C6 USER_C_MODULES=$GITHUB_WORKSPACE/custom_module/esp32_twt
 
     # 7. Prepare the compiled output binary for artifact packaging
