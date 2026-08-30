@@ -4,7 +4,7 @@
 #include "esp_pm.h"
 #include "esp_log.h"
 
-// Function to setup TWT using standard 'static' keyword compatible with modern MicroPython
+// Function to setup TWT - fully compliant with ESP-IDF v5.4 standard structures
 static mp_obj_t esp32_twt_setup(size_t n_args, const mp_obj_t *args) {
     uint8_t wake_int_exponent = mp_obj_get_int(args[0]);
     uint16_t wake_int_mantissa = mp_obj_get_int(args[1]);
@@ -20,15 +20,19 @@ static mp_obj_t esp32_twt_setup(size_t n_args, const mp_obj_t *args) {
     ESP_ERROR_CHECK(esp_pm_configure(&pm_config));
     #endif
 
-    esp_wifi_twt_setup_param_t twt_setup_param = {
+    // Correct modern IDF 5.4 structure and field names
+    wifi_twt_setup_config_t twt_setup_param = {
+        .setup_cmd = TWT_SETUP_REQUEST,
+        .flow_id = 0,
         .twt_id = 1,
         .flow_type = (flow_type == 0) ? TWT_FLOW_TYPE_ANNOUNCED : TWT_FLOW_TYPE_UNANNOUNCED,
         .trigger = (trigger_en == 1) ? TWT_TRIGGER_EN : TWT_TRIGGER_DISABLE,                
         .wake_invl_exp = wake_int_exponent,                     
-        .wake_invl_mant = wake_int_mantissa,                    
-        .minimum_wake_duration = 255,                           
+        .wake_invl_mantis = wake_int_mantissa,                    
+        .wake_duration = 255,                           
     };
 
+    // Correct modern IDF 5.4 function call
     esp_err_t err = esp_wifi_twt_setup(&twt_setup_param);
     if (err != ESP_OK) {
         mp_raise_ValueError("Modern TWT setup failed. Verify router AX support.");
@@ -84,7 +88,7 @@ static mp_obj_t esp32_twt_teardown(void) {
 static MP_DEFINE_CONST_FUN_OBJ_0(esp32_twt_teardown_obj, esp32_twt_teardown);
 
 
-// Module globals mapping table using standard modern syntax
+// Module globals mapping table
 static const mp_rom_map_elem_t esp32_twt_module_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR___name__), MP_ROM_QSTR(MP_QSTR_esp32_twt) },
     { MP_ROM_QSTR(MP_QSTR_setup), MP_ROM_PTR(&esp32_twt_setup_obj) },
